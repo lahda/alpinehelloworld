@@ -154,10 +154,11 @@ pipeline {
 
     post {
         always {
-            // Correct declarative way to specify an agent context inside post-actions
-            agent any
-            steps {
-                sh 'docker image prune -f || true'
+            script {
+                // Using standard scripted step execution with explicitly named parameter
+                node(label: '') {
+                    sh 'docker image prune -f || true'
+                }
             }
         }
         success {
