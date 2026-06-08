@@ -80,7 +80,6 @@ pipeline {
         stage('Clean local test artifacts') {
             agent any
             steps {
-                // Moved safely after the Docker Hub push
                 sh '''
                     docker rm -f ${CONTAINER_TEST} || true
                     docker rmi ${ID_DOCKER}/${IMAGE_NAME}:${IMAGE_TAG} || true
@@ -155,8 +154,9 @@ pipeline {
 
     post {
         always {
-            // Simplified execution targeting any general free agent workspace safely
-            node {
+            // Correct declarative way to specify an agent context inside post-actions
+            agent any
+            steps {
                 sh 'docker image prune -f || true'
             }
         }
