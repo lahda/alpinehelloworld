@@ -154,8 +154,11 @@ pipeline {
 
     post {
         always {
-            node('any') {
-                sh 'docker image prune -f || true'
+            script {
+                // Wrapped inside a script block to comply with Declarative Pipeline syntax rules
+                node('any') {
+                    sh 'docker image prune -f || true'
+                }
             }
         }
         success {
@@ -170,4 +173,17 @@ pipeline {
         failure {
             slackSend(
                 color: 'danger',
-                message: """❌ *${
+                message: """❌ *${env.JOB_NAME}* #${env.BUILD_NUMBER} échoué
+- Stage: `${env.STAGE_NAME}`
+- <${env.BUILD_URL}console|Voir les logs>"""
+            )
+        }
+        aborted {
+            slackSend(
+                color: 'warning',
+                message: """⚠️ *${env.JOB_NAME}* #${env.BUILD_NUMBER} annulé
+- <${env.BUILD_URL}|Voir le build>"""
+            )
+        }
+    }
+}
