@@ -56,7 +56,11 @@ pipeline {
         stage('Clean container') {
             agent any
             steps {
-                sh 'docker rm -f ${CONTAINER_TEST} || true'
+                // This removes the active test container and the specific image tag built for this run
+                sh '''
+                    docker rm -f ${CONTAINER_TEST} || true
+                    docker rmi ${ID_DOCKER}/${IMAGE_NAME}:${IMAGE_TAG} || true
+                '''
             }
         }
 
@@ -144,6 +148,12 @@ pipeline {
     }
 
     post {
+        always {
+            // A final sweep execution on the agent node to remove untagged/dangling system images
+            node('any') {
+                sh 'docker image prune -f || true'
+            }
+        }
         success {
             slackSend(
                 color: 'good',
