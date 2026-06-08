@@ -47,7 +47,7 @@ pipeline {
             steps {
                 sh '''
                     docker ps | grep ${CONTAINER_TEST} || (echo "Container not running!" && exit 1)
-                    curl -f http://172.17.0.1:${TEST_PORT}/health | grep -q "healthy"
+                    curl -f http://172.17.0.1:${TEST_PORT}/ | grep -q "Hello world!"
                     echo "Test passed!"
                 '''
             }
@@ -98,7 +98,7 @@ pipeline {
             steps {
                 sh '''
                     sleep 5
-                    curl -f http://${STAGING_HOST}/health | grep -q "healthy"
+                    curl -f http://${STAGING_HOST}/ | grep -q "Hello world!"
                     echo "Staging is healthy!"
                 '''
             }
@@ -136,7 +136,7 @@ pipeline {
             steps {
                 sh '''
                     sleep 5
-                    curl -f http://${PROD_HOST}/health | grep -q "healthy"
+                    curl -f http://${PROD_HOST}/ | grep -q "Hello world!"
                     echo "Production is healthy!"
                 '''
             }
