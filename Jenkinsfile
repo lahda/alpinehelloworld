@@ -31,8 +31,19 @@ pipeline {
             agent any
             steps {
                 sh '''
-                    echo "Clean environment"
-                    docker rm -f ${CONTAINER_TEST} || echo "container does not exist"
+                    echo "Preparing environment..."
+                    
+                    # Force clean any lingering container occupying our test port (5001)
+                    OLD_CONTAINER=$(docker ps -q -f "publish=${TEST_PORT}")
+                    if [ ! -z "$OLD_CONTAINER" ]; then
+                        echo "Found legacy container (${OLD_CONTAINER}) on port ${TEST_PORT}. Evicting..."
+                        docker rm -f $OLD_CONTAINER
+                    fi
+
+                    # Ensure specific container name is vacant
+                    docker rm -f ${CONTAINER_TEST} || true
+                    
+                    # Launch fresh test environment
                     docker run --name ${CONTAINER_TEST} -d \
                         -p ${TEST_PORT}:5000 \
                         -e PORT=5000 \
@@ -46,9 +57,9 @@ pipeline {
             agent any
             steps {
                 sh '''
-                    docker ps | grep ${CONTAINER_TEST} || (echo "Container not running!" && exit 1)
+                    docker ps | grep ${CONTAINER_TEST} || (echo "Container failed to start!" && exit 1)
                     curl -f http://172.17.0.1:${TEST_PORT}/ | grep -q "Hello world!"
-                    echo "Test passed!"
+                    echo "Local integration test passed safely!"
                 '''
             }
         }
@@ -56,7 +67,6 @@ pipeline {
         stage('Clean container') {
             agent any
             steps {
-                // This removes the active test container and the specific image tag built for this run
                 sh '''
                     docker rm -f ${CONTAINER_TEST} || true
                     docker rmi ${ID_DOCKER}/${IMAGE_NAME}:${IMAGE_TAG} || true
@@ -68,12 +78,9 @@ pipeline {
             agent any
             steps {
                 sh '''
-                    echo $DOCKERHUB_AUTH_PSW | docker login \
-                        -u $DOCKERHUB_AUTH_USR \
-                        --password-stdin
+                    echo $DOCKERHUB_AUTH_PSW | docker login -u $DOCKERHUB_AUTH_USR --password-stdin
                     docker push ${ID_DOCKER}/${IMAGE_NAME}:${IMAGE_TAG}
-                    docker tag ${ID_DOCKER}/${IMAGE_NAME}:${IMAGE_TAG} \
-                               ${ID_DOCKER}/${IMAGE_NAME}:latest
+                    docker tag ${ID_DOCKER}/${IMAGE_NAME}:${IMAGE_TAG} ${ID_DOCKER}/${IMAGE_NAME}:latest
                     docker push ${ID_DOCKER}/${IMAGE_NAME}:latest
                     docker logout
                 '''
@@ -87,11 +94,10 @@ pipeline {
                     sh '''
                         command1="echo $DOCKERHUB_AUTH_PSW | docker login -u $DOCKERHUB_AUTH_USR --password-stdin"
                         command2="docker pull $ID_DOCKER/$IMAGE_NAME:$IMAGE_TAG"
-                        command3="docker rm -f webapp || echo 'app does not exist'"
+                        command3="docker rm -f webapp || echo 'No staging app to replace'"
                         command4="docker run -d -p 80:5000 -e PORT=5000 --name webapp --restart always $ID_DOCKER/$IMAGE_NAME:$IMAGE_TAG"
                         command5="sleep 3 && docker ps | grep webapp"
-                        ssh -o StrictHostKeyChecking=no ubuntu@${STAGING_HOST} \
-                            "$command1 && $command2 && $command3 && $command4 && $command5"
+                        ssh -o StrictHostKeyChecking=no ubuntu@${STAGING_HOST} "$command1 && $command2 && $command3 && $command4 && $command5"
                     '''
                 }
             }
@@ -103,7 +109,7 @@ pipeline {
                 sh '''
                     sleep 5
                     curl -f http://${STAGING_HOST}/ | grep -q "Hello world!"
-                    echo "Staging is healthy!"
+                    echo "Staging environment is healthy!"
                 '''
             }
         }
@@ -112,7 +118,7 @@ pipeline {
             agent none
             steps {
                 timeout(time: 30, unit: 'MINUTES') {
-                    input message: 'Staging OK ? Déployer en PRODUCTION ?',
+                    input message: 'Staging validation passed. Deploy to PRODUCTION?',
                           ok: 'Oui, déployer !'
                 }
             }
@@ -125,11 +131,10 @@ pipeline {
                     sh '''
                         command1="echo $DOCKERHUB_AUTH_PSW | docker login -u $DOCKERHUB_AUTH_USR --password-stdin"
                         command2="docker pull $ID_DOCKER/$IMAGE_NAME:$IMAGE_TAG"
-                        command3="docker rm -f webapp || echo 'app does not exist'"
+                        command3="docker rm -f webapp || echo 'No production app to replace'"
                         command4="docker run -d -p 80:5000 -e PORT=5000 --name webapp --restart always $ID_DOCKER/$IMAGE_NAME:$IMAGE_TAG"
                         command5="sleep 3 && docker ps | grep webapp"
-                        ssh -o StrictHostKeyChecking=no ubuntu@${PROD_HOST} \
-                            "$command1 && $command2 && $command3 && $command4 && $command5"
+                        ssh -o StrictHostKeyChecking=no ubuntu@${PROD_HOST} "$command1 && $command2 && $command3 && $command4 && $command5"
                     '''
                 }
             }
@@ -141,7 +146,7 @@ pipeline {
                 sh '''
                     sleep 5
                     curl -f http://${PROD_HOST}/ | grep -q "Hello world!"
-                    echo "Production is healthy!"
+                    echo "Production live deployment verified successfully!"
                 '''
             }
         }
@@ -149,7 +154,6 @@ pipeline {
 
     post {
         always {
-            // A final sweep execution on the agent node to remove untagged/dangling system images
             node('any') {
                 sh 'docker image prune -f || true'
             }
@@ -166,17 +170,4 @@ pipeline {
         failure {
             slackSend(
                 color: 'danger',
-                message: """❌ *${env.JOB_NAME}* #${env.BUILD_NUMBER} échoué
-- Stage: `${env.STAGE_NAME}`
-- <${env.BUILD_URL}console|Voir les logs>"""
-            )
-        }
-        aborted {
-            slackSend(
-                color: 'warning',
-                message: """⚠️ *${env.JOB_NAME}* #${env.BUILD_NUMBER} annulé
-- <${env.BUILD_URL}|Voir le build>"""
-            )
-        }
-    }
-}
+                message: """❌ *${
