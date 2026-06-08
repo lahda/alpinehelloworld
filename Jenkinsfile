@@ -64,16 +64,6 @@ pipeline {
             }
         }
 
-        stage('Clean container') {
-            agent any
-            steps {
-                sh '''
-                    docker rm -f ${CONTAINER_TEST} || true
-                    docker rmi ${ID_DOCKER}/${IMAGE_NAME}:${IMAGE_TAG} || true
-                '''
-            }
-        }
-
         stage('Push Image to DockerHub') {
             agent any
             steps {
@@ -83,6 +73,17 @@ pipeline {
                     docker tag ${ID_DOCKER}/${IMAGE_NAME}:${IMAGE_TAG} ${ID_DOCKER}/${IMAGE_NAME}:latest
                     docker push ${ID_DOCKER}/${IMAGE_NAME}:latest
                     docker logout
+                '''
+            }
+        }
+
+        stage('Clean local test artifacts') {
+            agent any
+            steps {
+                // Moved safely after the Docker Hub push
+                sh '''
+                    docker rm -f ${CONTAINER_TEST} || true
+                    docker rmi ${ID_DOCKER}/${IMAGE_NAME}:${IMAGE_TAG} || true
                 '''
             }
         }
@@ -154,11 +155,9 @@ pipeline {
 
     post {
         always {
-            script {
-                // Wrapped inside a script block to comply with Declarative Pipeline syntax rules
-                node('any') {
-                    sh 'docker image prune -f || true'
-                }
+            // Simplified execution targeting any general free agent workspace safely
+            node {
+                sh 'docker image prune -f || true'
             }
         }
         success {
