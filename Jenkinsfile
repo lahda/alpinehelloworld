@@ -153,29 +153,28 @@ pipeline {
     }
 
 post {
-        always {
-            echo "🧹 Post-Build Action: Tearing down pipeline container environment..."
-            // Ensures the active testing container is swept away whether the build passes or fails
-            sh "docker rm -f ${CONTAINER_NAME} || true"
-        }
         success {
-            echo "🎉 Pipeline completed successfully!"
             slackSend(
-                teamDomain: 'lahda', 
-                channel: '#all-lahda', 
-                color: 'good', 
-                tokenCredentialId: "${SLACK_CREDS}", 
-                message: "SUCCESS: Job '${env.JOB_NAME}' [Build #${env.BUILD_NUMBER}] processed flawlessly. (${env.BUILD_URL})"
+                color: 'good',
+                message: """✅ *${env.JOB_NAME}* #${env.BUILD_NUMBER} réussi
+- Image: `${env.ID_DOCKER}/${env.IMAGE_NAME}:${env.IMAGE_TAG}`
+- Durée: ${currentBuild.durationString}
+- <${env.BUILD_URL}|Voir le build>"""
             )
         }
         failure {
-            echo "🚨 Pipeline encountered issues."
             slackSend(
-                teamDomain: 'lahda', 
-                channel: '#all-lahda', 
-                color: 'danger', 
-                tokenCredentialId: "${SLACK_CREDS}", 
-                message: "FAILURE: Job '${env.JOB_NAME}' [Build #${env.BUILD_NUMBER}] failed. Check logs at: ${env.BUILD_URL}"
+                color: 'danger',
+                message: """❌ *${env.JOB_NAME}* #${env.BUILD_NUMBER} échoué
+- Stage: `${env.STAGE_NAME}`
+- <${env.BUILD_URL}console|Voir les logs>"""
+            )
+        }
+        aborted {
+            slackSend(
+                color: 'warning',
+                message: """⚠️ *${env.JOB_NAME}* #${env.BUILD_NUMBER} annulé
+- <${env.BUILD_URL}|Voir le build>"""
             )
         }
     }
