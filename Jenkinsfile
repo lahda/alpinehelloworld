@@ -1,6 +1,3 @@
-/* import shared library */
-@Library('shared-library@main')_
-
 pipeline {
     agent none
 
@@ -155,11 +152,31 @@ pipeline {
         }
     }
 
-    post {
+post {
         always {
-            script {
-                slackNotifier currentBuild.result
-            }
+            echo "🧹 Post-Build Action: Tearing down pipeline container environment..."
+            // Ensures the active testing container is swept away whether the build passes or fails
+            sh "docker rm -f ${CONTAINER_NAME} || true"
         }
-    } 
+        success {
+            echo "🎉 Pipeline completed successfully!"
+            slackSend(
+                teamDomain: 'lahda', 
+                channel: '#all-lahda', 
+                color: 'good', 
+                tokenCredentialId: "${SLACK_CREDS}", 
+                message: "SUCCESS: Job '${env.JOB_NAME}' [Build #${env.BUILD_NUMBER}] processed flawlessly. (${env.BUILD_URL})"
+            )
+        }
+        failure {
+            echo "🚨 Pipeline encountered issues."
+            slackSend(
+                teamDomain: 'lahda', 
+                channel: '#all-lahda', 
+                color: 'danger', 
+                tokenCredentialId: "${SLACK_CREDS}", 
+                message: "FAILURE: Job '${env.JOB_NAME}' [Build #${env.BUILD_NUMBER}] failed. Check logs at: ${env.BUILD_URL}"
+            )
+        }
+    }
 }
