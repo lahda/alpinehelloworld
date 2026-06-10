@@ -1,3 +1,6 @@
+/* import shared library */
+@Library('shared-library')_
+
 pipeline {
     agent none
 
@@ -155,35 +158,8 @@ pipeline {
     post {
         always {
             script {
-                // Using standard scripted step execution with explicitly named parameter
-                node(label: '') {
-                    sh 'docker image prune -f || true'
-                }
+                slackNotifier currentBuild.result
             }
         }
-        success {
-            slackSend(
-                color: 'good',
-                message: """✅ *${env.JOB_NAME}* #${env.BUILD_NUMBER} réussi
-- Image: `${env.ID_DOCKER}/${env.IMAGE_NAME}:${env.IMAGE_TAG}`
-- Durée: ${currentBuild.durationString}
-- <${env.BUILD_URL}|Voir le build>"""
-            )
-        }
-        failure {
-            slackSend(
-                color: 'danger',
-                message: """❌ *${env.JOB_NAME}* #${env.BUILD_NUMBER} échoué
-- Stage: `${env.STAGE_NAME}`
-- <${env.BUILD_URL}console|Voir les logs>"""
-            )
-        }
-        aborted {
-            slackSend(
-                color: 'warning',
-                message: """⚠️ *${env.JOB_NAME}* #${env.BUILD_NUMBER} annulé
-- <${env.BUILD_URL}|Voir le build>"""
-            )
-        }
-    }
+    } 
 }
