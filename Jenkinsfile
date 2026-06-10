@@ -2,14 +2,14 @@ pipeline {
     agent none
 
     environment {
-        DOCKERHUB_AUTH = credentials('id_dockerhub')
+        DOCKERHUB_AUTH = credentials('dockerhub-creds')
         ID_DOCKER      = "${DOCKERHUB_AUTH_USR}"
         IMAGE_NAME     = "alpinehelloworld"
         IMAGE_TAG      = "${BUILD_NUMBER}"
         CONTAINER_TEST = "alpinehelloworld-${BUILD_NUMBER}"
         TEST_PORT      = "5001"
-        STAGING_HOST   = "3.91.225.204"
-        PROD_HOST      = "52.55.128.225"
+        STAGING_HOST   = "98.81.175.216"
+        PROD_HOST      = "52.91.171.85"
     }
 
     options {
