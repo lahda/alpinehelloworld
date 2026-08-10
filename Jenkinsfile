@@ -1,18 +1,20 @@
-/* import shared library */
-@Library('shared-library')_
-
 pipeline {
     agent none
 
+    parameters {
+        string(name: 'DOCKERHUB', defaultValue: 'alphonsine',
+               description: 'Compte Docker Hub (namespace des images)')
+    }
+
     environment {
         DOCKERHUB_AUTH = credentials('dockerhub-creds')
-        ID_DOCKER      = "${DOCKERHUB_AUTH_USR}"
+        ID_DOCKER      = "${params.DOCKERHUB}"
         IMAGE_NAME     = "alpinehelloworld"
         IMAGE_TAG      = "${BUILD_NUMBER}"
         CONTAINER_TEST = "alpinehelloworld-${BUILD_NUMBER}"
         TEST_PORT      = "5001"
-        STAGING_HOST   = "100.48.94.15"
-        PROD_HOST      = "54.234.164.41"
+        STAGING_HOST   = "23.22.210.35"
+        PROD_HOST      = "100.27.212.56"
     }
 
     options {
@@ -35,7 +37,7 @@ pipeline {
             steps {
                 sh '''
                     echo "Preparing environment..."
-                    
+
                     # Force clean any lingering container occupying our test port (5001)
                     OLD_CONTAINER=$(docker ps -q -f "publish=${TEST_PORT}")
                     if [ ! -z "$OLD_CONTAINER" ]; then
@@ -45,7 +47,7 @@ pipeline {
 
                     # Ensure specific container name is vacant
                     docker rm -f ${CONTAINER_TEST} || true
-                    
+
                     # Launch fresh test environment
                     docker run --name ${CONTAINER_TEST} -d \
                         -p ${TEST_PORT}:5000 \
@@ -154,12 +156,4 @@ pipeline {
             }
         }
     }
-
-  post {
-    always {
-      script {
-        slackNotifier currentBuild.result
-      }
-    }  
-  }
 }
