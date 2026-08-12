@@ -1,3 +1,6 @@
+/* import shared library */
+@Library('shared-library')_
+
 pipeline {
     agent none
 
@@ -156,4 +159,11 @@ pipeline {
             }
         }
     }
+post {
+  always {
+      script {
+        slackNotifier currentBuild.result
+      }
+    }  
+  }
 }
