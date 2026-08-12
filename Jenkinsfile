@@ -13,8 +13,8 @@ pipeline {
         IMAGE_TAG      = "${BUILD_NUMBER}"
         CONTAINER_TEST = "alpinehelloworld-${BUILD_NUMBER}"
         TEST_PORT      = "5001"
-        STAGING_HOST   = "23.22.210.35"
-        PROD_HOST      = "100.27.212.56"
+        STAGING_HOST   = "32.197.130.80"
+        PROD_HOST      = "54.237.139.87"
     }
 
     options {
